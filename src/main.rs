@@ -65,8 +65,22 @@ impl Slice {
             || self.get(start + length) == GridState::Filled)
     }
 
+    fn finalize(&self) -> Self {
+        Self {
+            selection: self.selection,
+            states: self
+                .states
+                .iter()
+                .map(|s| match s {
+                    GridState::Filled => GridState::Filled,
+                    _ => GridState::None,
+                })
+                .collect(),
+        }
+    }
+
     fn place_segment(&self, start: i32, length: i32) -> Self {
-        Slice {
+        Self {
             selection: self.selection,
             states: self
                 .states
@@ -103,7 +117,11 @@ impl Slice {
             }
             i += 1;
         }
-        segments
+        if segments.len() > 0 {
+            segments
+        } else {
+            vec![0]
+        }
     }
 
     fn merge(a: Option<Self>, b: Self) -> Option<Self> {
@@ -152,6 +170,13 @@ impl Board {
         }
     }
 
+    fn get_segments(&self, selection: Selection) -> Vec<i32> {
+        match selection.orientation {
+            Orientation::Row => self.rows[selection.index as usize].clone(),
+            Orientation::Column => self.columns[selection.index as usize].clone(),
+        }
+    }
+
     fn extract_slice(&self, selection: Selection) -> Slice {
         Slice {
             selection: selection,
@@ -162,6 +187,33 @@ impl Board {
                     .collect(),
             },
         }
+    }
+
+    fn apply_slice(&mut self, slice: Slice) {
+        let i = slice.selection.index as usize;
+        match slice.selection.orientation {
+            Orientation::Row => {
+                for j in 0..self.columns.len() {
+                    self.states[i][j] = slice.states[j];
+                }
+            }
+
+            Orientation::Column => {
+                for j in 0..self.rows.len() {
+                    self.states[j][i] = slice.states[j];
+                }
+            }
+        }
+    }
+
+    fn slice_is_completed(&self, slice: Slice) -> bool {
+        slice
+            .get_segments()
+            .iter()
+            .zip(self.get_segments(slice.selection).iter())
+            .filter(|(a, b)| a != b)
+            .count()
+            == 0
     }
 }
 
